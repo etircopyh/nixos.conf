@@ -94,8 +94,8 @@
             "net.ipv6.conf.default.disable_ipv6" = 1;
             "net.ipv6.conf.lo.disable_ipv6" = 1;
             "net.ipv6.conf.all.disable_ipv6" = 1;
-            "net.ipv6.conf.eth*.disable_ipv6" = 1;
-            "net.ipv6.conf.wlan*.disable_ipv6" = 1;
+            "net.ipv6.conf.eth0.disable_ipv6" = 1;
+            "net.ipv6.conf.wlan0.disable_ipv6" = 1;
         };
     };
 
@@ -230,7 +230,7 @@
         };
         pulseaudio = {
             enable = true;
-        support32Bit = true;
+	    support32Bit = true;
             package = pkgs.pulseaudioFull; # pkgs.pulseaudio/pulseaudioFull
             configFile = /home/etircopyh/.config/pulse/default.pa;
             daemon.config = {
@@ -249,29 +249,15 @@
         };
     };
 
-    # List packages installed in system profile. To search, run:
-    # $ nix search wget
+    # List packages installed in system profile.
     environment.systemPackages = with pkgs; [
+    # Basic software
         curl
-        bat                            # better cat
-        iwd
-        dex
-        aria2
-        exa
-        neofetch
-        htop
-        alacritty                      # Terminal
-        hasklig
-        ibm-plex
-        bibata-cursors
-        papirus-icon-theme
-        breeze-gtk
-        firefox-wayland
-        lxqt.pavucontrol-qt
-        pantheon.elementary-calculator # Calculator
         git
         ix
         imv
+        brightnessctl
+        gnupg
         unzip
         zip
         unrar
@@ -279,37 +265,81 @@
         jq
         pciutils
         usbutils
+        iwd
+        dnscrypt-proxy2
+        dex
+        playerctl                       # mpris
+        neovim
+        tmux
+        vimPlugins.vim-plug
+        aria2
+        neofetch
+        #htop
+        alacritty                      # Terminal
+
+    # Fonts
+        hasklig
+        ibm-plex
+
+    # System customization
+        qt5ct
+        bibata-cursors
+        papirus-icon-theme
+        breeze-gtk
+
+    # Audio
+        lxqt.pavucontrol-qt
         pamixer
         ladspaPlugins
+
+    # User software
         #kotatogram-desktop              # TG-desktop fork
         tdesktop
-        brightnessctl
+        firefox-wayland
+        pantheon.elementary-calculator # Calculator
         mpv
-        playerctl                       # mpris2
-        dnscrypt-proxy2
         youtube-dl-light
-        nix-index
-        neovim
-        vimPlugins.vim-plug
-        shellcheck
-        ripgrep
         vscodium
         mate.caja
         fzf                             # FZF
+        #steam
         steam-run-native
-        steam
-        #ntfs3g
-        #gcc-unwrapped.lib
-        #gdb
         #lutris
         #SDL2
+
+    # Nix/NixOS stuff
+        nix-index
+
+    # Rust written replacement
+        uutils-coreutils
+        amp
+        sd
+        du-dust
+        ytop
+        watchexec
+        tokei
+        ripgrep
+        fd
+        skim
+        bat                            # better cat
+        exa
+
+    # File system
+        #ntfs3g
+
+    # Development
+        #gcc-unwrapped.lib
+        #gdb
         #autoPatchelfHook
         #patchelf
-        # Xorg
+        shellcheck
+
+    # Xorg
         #xclip
         #flameshot
         #maim
-        # ZSH
+
+    # ZSH
         starship
         zsh-autosuggestions             # Fish-like autosuggestions
         zsh-completions                 # Additional completions
@@ -329,6 +359,9 @@
         EDITOR = "nvim";
         VISUAL = "$EDITOR";
         SYSTEMD_EDITOR = "$EDITOR";
+        QT_QPA_PLATFORMTHEME = "qt5ct";
+        LIBVA_DRIVER_NAME = "i965";
+        NO_AT_BRIDGE = "1";
     };
 
     # Some programs need SUID wrappers, can be configured further or are
