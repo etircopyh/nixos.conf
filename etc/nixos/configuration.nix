@@ -230,7 +230,7 @@
         };
         pulseaudio = {
             enable = true;
-	    support32Bit = true;
+            support32Bit = true;
             package = pkgs.pulseaudioFull; # pkgs.pulseaudio/pulseaudioFull
             configFile = /home/etircopyh/.config/pulse/default.pa;
             daemon.config = {
