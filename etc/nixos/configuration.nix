@@ -28,9 +28,14 @@
         #loader.efi.canTouchEfiVariables = true;
         supportedFilesystems = [ "zfs" ];
         kernelPackages = pkgs.linuxPackages_latest;
-        kernelParams = [ "systemd.restore_state=0" "audit=0" "i915.modeset=1" "i915.enable_fbc=1" "i915.enable_psr=0" "i915.enable_dc=0" "i915.fastboot=1" "i915.nuclear_pageflip=1" "pcie_aspm.policy=performance" "mitigations=off" "nowatchdog" "nmi_watchdog=0" "ipv6.disable=1" "cryptomgr.notests" "intel_iommu=igfx_off" "kvm-intel.nested=1" "no_timer_check" "noreplace-smp" "page_alloc_shuffle=1" "rcu_nocbs=0-64" "rcupdate.rcu_expedited=1" "tsc=reliable" ];
+        kernelParams = [ "systemd.restore_state=0" "audit=0" "i915.modeset=1" "i915.enable_fbc=1" "i915.enable_psr=0" "i915.enable_dc=0" "i915.fastboot=1" "i915.nuclear_pageflip=1" "intel_pstate=active" "pcie_aspm.policy=performance" "mitigations=off" "nowatchdog" "nmi_watchdog=0" "ipv6.disable=1" "cryptomgr.notests" "intel_iommu=igfx_off" "kvm-intel.nested=1" "no_timer_check" "noreplace-smp" "page_alloc_shuffle=1" "rcu_nocbs=0-64" "rcupdate.rcu_expedited=1" "tsc=reliable" ];
         initrd.availableKernelModules = lib.mkForce [ "zfs" "sd_mod" "ahci" "i915" ];
+        kernelModules = [ "bfq" ];
         blacklistedKernelModules = [ "iTC0_wdt" "uvcvideo" ];
+        extraModprobeConfig = ''
+            options snd_hda_intel enable_msi=1 power_save=0 power_save_controller=N
+            options ath9k ps_enable=0 use_msi=1
+        '';
         cleanTmpDir = true;
         kernel.sysctl = {
         # Kernel
@@ -99,9 +104,13 @@
         };
     };
 
+    # Security
+    security.rtkit.enable = true;
+    security.apparmor.enable = lib.mkForce false;
+
     # Power management
     powerManagement = {
-        cpuFreqGovernor = "performance";
+        cpuFreqGovernor = "schedutil";
         scsiLinkPolicy = "max_performance";
     };
 
@@ -169,25 +178,63 @@
 
     # Services
     services = {
+        udev.extraRules = ''
+            # set scheduler for NVMe
+            ACTION=="add|change", KERNEL=="nvme[0-9]n[0-9]", ATTR{queue/scheduler}="none"
+            # set scheduler for SSD and eMMC
+            ACTION=="add|change", KERNEL=="sd[a-z]|mmcblk[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+            # set scheduler for rotating disks
+            ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
+            # Power management rules
+            # PCI
+            SUBSYSTEM=="pci", ATTR{power/control}="on"
+            # USB
+            ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="on"
+        '';
         dnscrypt-proxy2 = {
             enable = true;
             configFile = /home/etircopyh/.config/dnscrypt-proxy/dnscrypt-proxy.toml;
         };
         resolved.enable = false;
         resolved.dnssec = false;
+        throttled = {
+            enable = true;
+            extraConfig = ''
+                [AC]
+                # Update the registers every this many seconds
+                Update_Rate_s: 5
+                # Max package power for time window #1
+                PL1_Tdp_W: 45
+                # Time window #1 duration
+                PL1_Duration_s: 35
+                # Max package power for time window #2
+                PL2_Tdp_W: 56
+                # Time window #2 duration
+                PL2_Duration_S: 0.002
+                # Max allowed temperature before throttling
+                Trip_Temp_C: 95
+                # Set HWP energy performance hints to 'performance' on high load (EXPERIMENTAL)
+                HWP_Mode: True
+                # Set cTDP to normal=0, down=1 or up=2 (EXPERIMENTAL)
+                cTDP: 0
+                # Disable BDPROCHOT (EXPERIMENTAL)
+                Disable_BDPROCHOT: False
+            '';
+        };
         logind.killUserProcesses = true;
-        nscd.enable = true;
         gnome3.at-spi2-core.enable = lib.mkForce false;
         gnome3.gnome-keyring.enable = lib.mkForce false;
     };
 
     # Portals
-    # xdg.portal = {
-    #     enable = true;
-    #     extraPortals = with pkgs; [
-    #         xdg-desktop-portal-kde
-    #     ];
-    # };
+    xdg.portal = {
+        enable = true;
+        gtkUsePortal = true;
+        extraPortals = with pkgs; [
+            xdg-desktop-portal-gtk
+            xdg-desktop-portal-kde
+        ];
+    };
 
     # Locale
     i18n = {
@@ -208,7 +255,12 @@
     fonts = {
         fontconfig.antialias = true;
         fontconfig.subpixel.rgba = "none";
-        fontconfig.hinting.enable = true;
+        fontDir.enable = true;
+        fonts = with pkgs; [
+            hasklig
+            ibm-plex
+            font-awesome
+        ];
     };
 
     hardware = {
@@ -228,25 +280,6 @@
             enable = true;
             package = pkgs.bluezFull; # pkgs.bluez/bluezFull
         };
-        pulseaudio = {
-            enable = true;
-            support32Bit = true;
-            package = pkgs.pulseaudioFull; # pkgs.pulseaudio/pulseaudioFull
-            configFile = /home/etircopyh/.config/pulse/default.pa;
-            daemon.config = {
-                daemonize = "no";
-                high-priority = "yes";
-                nice-level = "-15";
-                resample-method = "speex-float-10";
-                enable-lfe-remixing = "no";
-                flat-volumes = "no";
-                default-sample-format = "float32le";
-                default-sample-rate = "44100";
-                alternate-sample-rate = "96000";
-                default-sample-channels = "2";
-                default-channel-map = "front-left,front-right";
-            };
-        };
     };
 
     # List packages installed in system profile.
@@ -263,6 +296,7 @@
         unrar
         file
         jq
+        lm_sensors
         pciutils
         usbutils
         iwd
@@ -271,18 +305,16 @@
         playerctl                       # mpris
         neovim
         tmux
-        vimPlugins.vim-plug
-        aria2
+        # vimPlugins.vim-plug
+        # aria2
         neofetch
-        #htop
+        htop
         alacritty                      # Terminal
 
-    # Fonts
-        hasklig
-        ibm-plex
+    # Libraries
+        libarchive
 
     # System customization
-        qt5ct
         bibata-cursors
         papirus-icon-theme
         breeze-gtk
@@ -293,17 +325,18 @@
         ladspaPlugins
 
     # User software
-        #kotatogram-desktop              # TG-desktop fork
+        # kotatogram-desktop             # TG-desktop fork
+        ark
         tdesktop
         firefox-wayland
-        pantheon.elementary-calculator # Calculator
+        pantheon.elementary-calculator  # Calculator
         mpv
         youtube-dl-light
         vscodium
-        mate.caja
+        #mate.caja
         fzf                             # FZF
         #steam
-        steam-run-native
+        #steam-run-native
         #lutris
         #SDL2
 
@@ -315,7 +348,6 @@
         amp
         sd
         du-dust
-        ytop
         watchexec
         tokei
         ripgrep
@@ -323,9 +355,12 @@
         skim
         bat                            # better cat
         exa
+        gitAndTools.delta
 
     # File system
         #ntfs3g
+        go-mtpfs
+        sshfs
 
     # Development
         #gcc-unwrapped.lib
@@ -359,9 +394,12 @@
         EDITOR = "nvim";
         VISUAL = "$EDITOR";
         SYSTEMD_EDITOR = "$EDITOR";
-        QT_QPA_PLATFORMTHEME = "qt5ct";
         LIBVA_DRIVER_NAME = "i965";
         NO_AT_BRIDGE = "1";
+    };
+
+    programs = {
+        qt5ct.enable = true;
     };
 
     # Some programs need SUID wrappers, can be configured further or are
@@ -379,7 +417,13 @@
 
     # Sound
     sound.enable = true;
-    nixpkgs.config.pulseaudio = true;
+    services.pipewire = {
+        enable = true;
+        alsa.enable = true;
+        pulse.enable = true;
+        jack.enable = false;
+    };
+    # nixpkgs.config.pulseaudio = true;
 
     # ZRAM setup
     zramSwap = {
@@ -400,17 +444,13 @@
         # Enable touchpad support.
         # libinput.enable = true;
         # Enable the KDE Desktop Environment
-        displayManager.sddm.enable = false;
+        displayManager = {
+            sddm.enable = false;
+            autoLogin.enable = true;
+            autoLogin.user = "etircopyh";
+        };
         desktopManager.plasma5.enable = false;
-        # displayManager.lightdm = {
-        #     enable = false;
-        #     greeter.enable = false;
-        # };
     };
-
-    # Enable the KDE Desktop Environment.
-    # services.xserver.displayManager.sddm.enable = true;
-    # services.xserver.desktopManager.plasma5.enable = true;
 
     # users.mutableUsers = false;
 
@@ -418,6 +458,11 @@
     nixpkgs.config = {
         allowUnfree = true;
         allowBroken = true;
+        packageOverrides = pkgs: {
+            nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/master.tar.gz") {
+                inherit pkgs;
+            };
+        };
         # permittedInsecurePackages = [
         #     "p7zip-16.02"
         # ];
@@ -436,7 +481,7 @@
                 # hashedPassword = "";
                 # description = "Root";
             };
-        # Define a user account. Don't forget to set a password with ‘passwd’.
+            # Define a user account. Don't forget to set a password with ‘passwd’.
             etircopyh = {
                 isNormalUser = true;
                 createHome = true;
@@ -450,9 +495,9 @@
         };
     };
 
-    # This value determines the NixOS release with which your system is to be
-    # compatible, in order to avoid breaking some software such as database
-    # servers. You should change this only after NixOS release notes say you
-    # should.
-    system.stateVersion = "19.09";
+# This value determines the NixOS release with which your system is to be
+# compatible, in order to avoid breaking some software such as database
+# servers. You should change this only after NixOS release notes say you
+# should.
+    system.stateVersion = "20.03";
 }
