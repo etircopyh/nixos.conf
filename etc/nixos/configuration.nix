@@ -34,7 +34,7 @@
         blacklistedKernelModules = [ "iTC0_wdt" "uvcvideo" ];
         extraModprobeConfig = ''
             options snd_hda_intel enable_msi=1 power_save=0 power_save_controller=N
-            options ath9k ps_enable=0 use_msi=1
+            options ath9k ps_enable=0
         '';
         cleanTmpDir = true;
         kernel.sysctl = {
