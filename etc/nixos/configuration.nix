@@ -11,30 +11,19 @@
             # /home/etircopyh/.config/nixos/pkgoverride.nix
         ];
 
-    # Use the systemd-boot EFI boot loader.
-    # boot.loader.efiBootStub = {
-    #     enable = true;
-    #     efiDisk = "/dev/sdb";
-    #     efiPartition = "2";
-    #     efiSysMountPoint = "/boot";
-    #     runEfibootmgr = false;
-    #     installStartupNsh = false;
-    #     installShell = false;
-    # };
-
     # Boot setup
     boot = {
         loader.systemd-boot.enable = true;
-        #loader.efi.canTouchEfiVariables = true;
+        # loader.efi.canTouchEfiVariables = true;
         supportedFilesystems = [ "zfs" ];
         kernelPackages = pkgs.linuxPackages_latest;
-        kernelParams = [ "systemd.restore_state=0" "audit=0" "i915.modeset=1" "i915.enable_fbc=1" "i915.enable_psr=0" "i915.enable_dc=0" "i915.fastboot=1" "i915.nuclear_pageflip=1" "intel_pstate=passive" "pcie_aspm.policy=performance" "mitigations=off" "nowatchdog" "nmi_watchdog=0" "ipv6.disable=1" "cryptomgr.notests" "intel_iommu=igfx_off" "kvm-intel.nested=1" "no_timer_check" "noreplace-smp" "page_alloc_shuffle=1" "rcu_nocbs=0-64" "rcupdate.rcu_expedited=1" "tsc=reliable" ];
+        kernelParams = [ "systemd.restore_state=0" "audit=0" "i915.modeset=1" "i915.enable_fbc=1" "i915.enable_psr=0" "i915.enable_dc=0" "i915.fastboot=1" "i915.nuclear_pageflip=1" "intel_pstate=active" "pcie_aspm.policy=performance" "mitigations=off" "nowatchdog" "nmi_watchdog=0" "ipv6.disable=1" "cryptomgr.notests" "intel_iommu=igfx_off" "kvm-intel.nested=1" "no_timer_check" "noreplace-smp" "page_alloc_shuffle=1" "rcu_nocbs=0-64" "rcupdate.rcu_expedited=1" "tsc=reliable" ];
         initrd.availableKernelModules = lib.mkForce [ "zfs" "sd_mod" "ahci" "i915" ];
         kernelModules = [ "bfq" ];
         blacklistedKernelModules = [ "iTC0_wdt" "uvcvideo" ];
         extraModprobeConfig = ''
             options snd_hda_intel enable_msi=1 power_save=0 power_save_controller=N
-            options ath9k ps_enable=0 use_msi=1
+            options ath9k ps_enable=0
         '';
         cleanTmpDir = true;
         kernel.sysctl = {
@@ -110,7 +99,7 @@
 
     # Power management
     powerManagement = {
-        cpuFreqGovernor = "schedutil";
+        cpuFreqGovernor = "performance";
         scsiLinkPolicy = "max_performance";
     };
 
@@ -197,30 +186,6 @@
         };
         resolved.enable = false;
         resolved.dnssec = false;
-        throttled = {
-            enable = true;
-            extraConfig = ''
-                [AC]
-                # Update the registers every this many seconds
-                Update_Rate_s: 5
-                # Max package power for time window #1
-                PL1_Tdp_W: 45
-                # Time window #1 duration
-                PL1_Duration_s: 35
-                # Max package power for time window #2
-                PL2_Tdp_W: 56
-                # Time window #2 duration
-                PL2_Duration_S: 0.002
-                # Max allowed temperature before throttling
-                Trip_Temp_C: 95
-                # Set HWP energy performance hints to 'performance' on high load (EXPERIMENTAL)
-                HWP_Mode: True
-                # Set cTDP to normal=0, down=1 or up=2 (EXPERIMENTAL)
-                cTDP: 0
-                # Disable BDPROCHOT (EXPERIMENTAL)
-                Disable_BDPROCHOT: False
-            '';
-        };
         logind.killUserProcesses = true;
         gnome3.at-spi2-core.enable = lib.mkForce false;
         gnome3.gnome-keyring.enable = lib.mkForce false;
@@ -290,7 +255,6 @@
         ix
         imv
         brightnessctl
-        gnupg
         unzip
         zip
         unrar
@@ -299,12 +263,8 @@
         lm_sensors
         pciutils
         usbutils
-        iwd
-        dnscrypt-proxy2
         dex
         playerctl                       # mpris
-        neovim
-        tmux
         # vimPlugins.vim-plug
         # aria2
         neofetch
@@ -333,12 +293,12 @@
         mpv
         youtube-dl-light
         vscodium
-        #mate.caja
+        # mate.caja
         fzf                             # FZF
-        #steam
-        #steam-run-native
-        #lutris
-        #SDL2
+        # steam
+        # steam-run-native
+        # lutris
+        # SDL2
 
     # Nix/NixOS stuff
         nix-index
@@ -363,16 +323,16 @@
         sshfs
 
     # Development
-        #gcc-unwrapped.lib
-        #gdb
-        #autoPatchelfHook
-        #patchelf
+        # gcc-unwrapped.lib
+        # gdb
+        # autoPatchelfHook
+        # patchelf
         shellcheck
 
     # Xorg
-        #xclip
-        #flameshot
-        #maim
+        # xclip
+        # flameshot
+        # maim
 
     # ZSH
         starship
@@ -399,7 +359,29 @@
     };
 
     programs = {
+        gnupg.package = pkgs.gnupg;
+        tmux = {
+            enable = true;
+            keyMode = "vi";
+            shortcut = "a";
+            terminal = "tmux-256color";
+            escapeTime = 0;
+            historyLimit = 10000;
+            aggressiveResize = true;
+            customPaneNavigationAndResize = true;
+        };
+        neovim = {
+            enable = true;
+            defaultEditor = true;
+            viAlias = true;
+            vimAlias = true;
+            withRuby = false;
+        };
         qt5ct.enable = true;
+        #adb.enable = true;
+        #npm.enable = true;
+        #steam.enable = true;
+        #chromium.enable = true;
     };
 
     # Some programs need SUID wrappers, can be configured further or are
@@ -423,7 +405,6 @@
         pulse.enable = true;
         jack.enable = false;
     };
-    # nixpkgs.config.pulseaudio = true;
 
     # ZRAM setup
     zramSwap = {
@@ -431,6 +412,11 @@
         algorithm = "zstd";
         memoryPercent = 50;
         numDevices = 1;
+    };
+
+    services.fstrim = {
+        enable = true;
+        interval = "weekly";
     };
 
     # X11 windowing system.
@@ -490,7 +476,7 @@
                 # shell = pkgs.zsh;
                 # hashedPassword = "";
                 # description = "User";
-                extraGroups = [ "wheel" "uucp" "audio" ];
+                extraGroups = [ "wheel" "uucp" "audio" "video" ];
             };
         };
     };
