@@ -294,7 +294,7 @@
         youtube-dl-light
         vscodium
         # mate.caja
-        fzf                             # FZF
+        # fzf                             # FZF
         # steam
         # steam-run-native
         # lutris
@@ -359,7 +359,13 @@
     };
 
     programs = {
-        gnupg.package = pkgs.gnupg;
+        gnupg = {
+	    agent = {
+	        enable = true;
+		enableSSHSupport = false;
+	    };
+	    package = pkgs.gnupg;
+	};
         tmux = {
             enable = true;
             keyMode = "vi";
@@ -485,5 +491,5 @@
 # compatible, in order to avoid breaking some software such as database
 # servers. You should change this only after NixOS release notes say you
 # should.
-    system.stateVersion = "20.03";
+    system.stateVersion = "20.09";
 }
