@@ -184,8 +184,10 @@
             enable = true;
             configFile = /home/etircopyh/.config/dnscrypt-proxy/dnscrypt-proxy.toml;
         };
-        resolved.enable = false;
-        resolved.dnssec = false;
+        resolved ={
+            enable = false;
+            dnssec = false;
+        };
         logind.killUserProcesses = true;
         gnome3.at-spi2-core.enable = lib.mkForce false;
         gnome3.gnome-keyring.enable = lib.mkForce false;
@@ -243,7 +245,7 @@
         };
         bluetooth = {
             enable = true;
-            package = pkgs.bluezFull; # pkgs.bluez/bluezFull
+            package = pkgs.bluezFull;
         };
     };
 
@@ -257,6 +259,7 @@
         brightnessctl
         unzip
         zip
+        p7zip
         unrar
         file
         jq
@@ -360,12 +363,12 @@
 
     programs = {
         gnupg = {
-	    agent = {
-	        enable = true;
-		enableSSHSupport = false;
-	    };
-	    package = pkgs.gnupg;
-	};
+            agent = {
+                enable = true;
+                enableSSHSupport = false;
+            };
+            package = pkgs.gnupg;
+        };
         tmux = {
             enable = true;
             keyMode = "vi";
@@ -393,14 +396,13 @@
     # Some programs need SUID wrappers, can be configured further or are
     # started in user sessions.
     # programs.mtr.enable = true;
-    # programs.gnupg.agent = { enable = true; enableSSHSupport = true; };
 
     # List services that you want to enable:
 
     # Enable the OpenSSH daemon.
     # services.openssh.enable = true;
 
-    # Enable CUPS to print documents.
+    # Enable CUPS to print documents
     services.printing.enable = false;
 
     # Sound
@@ -425,7 +427,7 @@
         interval = "weekly";
     };
 
-    # X11 windowing system.
+    # X11 windowing system
     services.xserver = {
         enable = false;
         layout = "us,ru";
@@ -444,9 +446,9 @@
         desktopManager.plasma5.enable = false;
     };
 
-    # users.mutableUsers = false;
-
     services.mingetty.autologinUser = "etircopyh";
+
+    # Nixpkgs configuration
     nixpkgs.config = {
         allowUnfree = true;
         allowBroken = true;
@@ -455,11 +457,9 @@
                 inherit pkgs;
             };
         };
-        # permittedInsecurePackages = [
-        #     "p7zip-16.02"
-        # ];
     };
 
+    # User configuration
     users = {
         defaultUserShell = pkgs.zsh;
         # mutableUsers = false;
