@@ -108,8 +108,8 @@ in
       rtkit.enable = true;
       apparmor.enable = lib.mkForce false;
       pam.loginLimits = [
-          { domain = "etircopyh"; item = "memlock"; type = "soft"; value = "64"; }
-          { domain = "etircopyh"; item = "memlock"; type = "hard"; value = "128"; }
+          { domain = "${username}"; item = "memlock"; type = "soft"; value = "64"; }
+          { domain = "${username}"; item = "memlock"; type = "hard"; value = "128"; }
       ];
       sudo.extraConfig = ''
         Defaults insults
