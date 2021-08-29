@@ -131,7 +131,7 @@ in
         resolvconf = {
             enable = true;
             useLocalResolver = true;
-            extraOptions = [ "single-request-reopen" "trust-ad" ];
+            extraOptions = [ "trust-ad" ];
             extraConfig = ''
                 name_server_blacklist="0.0.0.0 127.0.0.1"
             '';
@@ -376,7 +376,7 @@ in
             subpixel.rgba = "none";
             localConf = ''
                 <alias>
-                    <family>alacritty</family>
+                    <family>terminal</family>
                     <prefer>
                         <family>Hasklug Nerd Font</family>
                         <family>Noto Color Emoji</family>
@@ -472,7 +472,7 @@ in
         flameshot
         mate.mate-calc
         mpv
-        youtube-dl-light
+        yt-dlp-light
         vscodium
         mate.mate-polkit
         mate.engrampa
