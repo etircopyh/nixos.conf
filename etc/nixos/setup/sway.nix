@@ -1,22 +1,55 @@
 # Sway configuration
-{ config, pkgs, lib, ... }: {
+{ config, pkgs, lib, ... }:
+
+let
+  username = "etircopyh";
+  swayRun = pkgs.writeShellScript "sway-run-test" ''
+    SWAYLOGDIR="$HOME/.local/share/logs"
+
+    [ ! -d "$SWAYLOGDIR" ] && command mkdir -p "$SWAYLOGDIR"
+
+    echosplit () {
+        echo ""
+        echo "==========================================================================================="
+        echo "------------------------- $@ ---------------------------------"
+        echo "==========================================================================================="
+    }
+
+    if [ "$SWAY_DEBUG" = true ]; then
+        echosplit "$(date)" >> "$SWAYLOGDIR/sway_debug.log"
+        exec sway --verbose --debug >> "$SWAYLOGDIR/sway_debug.log"
+    else
+        echosplit "$(date)" >> "$SWAYLOGDIR/sway.log"
+        exec sway 2>> "$SWAYLOGDIR/sway.log"
+    fi
+  '';
+in
+
+{
+
+  #imports = [ ];
 
     programs.sway = {
         enable = true;
+        wrapperFeatures.gtk = true;
         extraPackages = with pkgs; [
-            swaylock
+            seatd
+            swaylock        # Screen locker
             swayidle
-            xwayland
             qt5.qtwayland
             wl-clipboard    # Clipboard
             waybar          # Bar
             mako            # Notification daemon
             grim            # Screenshot tool
             slurp
+            foot            # Terminal
             wf-recorder     # Screen recorder
             dex             # Autostart
             imv             # Image viewer
+            wofi            # App launcher
             font-awesome
+            adapta-gtk-theme
+            glib            # GSettings
         ];
         extraSessionCommands = ''
             export XDG_SESSION_TYPE=wayland
@@ -25,10 +58,8 @@
             # Needs qt5.qtwayland in systemPackages
             export QT_QPA_PLATFORM=wayland-egl
             export QT_WAYLAND_DISABLE_WINDOWDECORATION="1"
-            export QT_WAYLAND_FORCE_DPI=physical
 
             # Wayland Support Variables
-            #export GDK_BACKEND=wayland
             export ELM_ACCEL=gl
             export ELM_DISPLAY=wl
             export ELM_ENGINE=wayland_egl
@@ -41,14 +72,30 @@
         '';
     };
 
+    services.greetd = {
+        enable = true;
+        restart = false;
+        settings = {
+            default_session = {
+                command = "${pkgs.greetd.tuigreet}/bin/tuigreet --time --cmd sway-run";
+                user = "greeter";
+            };
+            initial_session = {
+                command = "sway-run";
+                user = "${username}";
+            };
+        };
+    };
+
     programs.waybar.enable = true;
+    programs.xwayland.enable = lib.mkForce false;
 
     environment = {
         etc = {
             # Put config files in /etc. Note that you also can put these in ~/.config, but then you can't manage them with NixOS anymore!
-            "sway/config".source = /home/etircopyh/GitRepos/arch-dotconfig/dotfiles/user/.config/sway/config;
-            "xdg/waybar/config".source = /home/etircopyh/GitRepos/arch-dotconfig/dotfiles/user/.config/waybar/config;
-            "xdg/waybar/style.css".source = /home/etircopyh/GitRepos/arch-dotconfig/dotfiles/user/.config/waybar/style.css;
+            "sway/config".source = "/home/${username}/GitRepos/arch.conf/dotfiles/user/.config/sway/config";
+            "xdg/waybar/config".source = "/home/${username}/GitRepos/arch.conf/dotfiles/user/.config/waybar/config";
+            "xdg/waybar/style.css".source = "/home/${username}/GitRepos/arch.conf/dotfiles/user/.config/waybar/style.css";
         };
     };
 
@@ -98,18 +145,18 @@
         };
     };
 
-    # systemd.user.services.waybar = {
-    #   description = "Highly customizable Wayland bar for Sway and Wlroots based compositors.";
-    #   documentation = [ "man:waybar(5)" ];
-    #   partOf = [ "graphical-session.target" ];
-    #   wantedBy = [ "sway-session.target" ];
-    #   serviceConfig = {
-    #       Type = "simple";
-    #       ExecStart = ''
-    #           ${pkgs.waybar}/bin/waybar
-    #       '';
-    #   };
-    # };
+    #systemd.user.services.waybar = {
+    #  description = "Highly customizable Wayland bar for Sway and Wlroots based compositors.";
+    #  documentation = [ "man:waybar(5)" ];
+    #  partOf = [ "graphical-session.target" ];
+    #  wantedBy = [ "sway-session.target" ];
+    #  serviceConfig = {
+    #      Type = "simple";
+    #      ExecStart = ''
+    #          ${pkgs.waybar}/bin/waybar
+    #      '';
+    #  };
+    #};
 
 
     systemd.user.services.mako = {
@@ -124,27 +171,4 @@
             '';
         };
     };
-
-
-    # services.redshift = {
-    #   enable = true;
-        # Redshift with wayland support isn't present in nixos-19.09 atm. You have to cherry-pick the commit from https://github.com/NixOS/nixpkgs/pull/68285 to do that.
-    #   package = pkgs.redshift-wlr;
-    # };
-
-
-    #systemd.user.services.kanshi = {
-    #   description = "Kanshi output autoconfig";
-    #   wantedBy = [ "graphical-session.target" ];
-    #   partOf = [ "graphical-session.target" ];
-    #   serviceConfig = {
-            # Kanshi doesn't have an option to specify config file yet, so it looks at ~/.config/kanshi/config
-    #       ExecStart = ''
-    #           ${pkgs.kanshi}/bin/kanshi
-    #       '';
-    #       RestartSec = 5;
-    #       Restart = "always";
-    #   };
-    #};
-
 }
