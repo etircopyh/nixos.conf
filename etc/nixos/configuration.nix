@@ -1,18 +1,63 @@
 # NixOS configuration file
 # man 5 configuration.nix
-{ config, pkgs, lib, ... }:
+{ config, inputs, ... }:
 
 let
-  username = "etircopyh";
+    username = "etircopyh";
+
+    nur-repo = import inputs.nur {
+        nurpkgs = import inputs.nixpkgs {
+            system = "x86_64-linux";
+            overlays = [];
+        };
+
+        repoOverrides = {
+            shlyupa-nur-repo = import inputs.nur-shlyupa {};
+        };
+    };
+
+    nurOverlay = self: super: {
+        nur = import inputs.nur {
+            nurpkgs = super;
+            pkgs = super;
+            repoOverrides = {
+                shlyupa-nur-repo = import inputs.nur-shlyupa {
+                    pkgs = super;
+                };
+            };
+        };
+    };
+
+    overlays = [
+        nurOverlay
+        #nur-repo.repos.shlyupa-nur-repo.overlays.portal
+    ];
+
+    nixpkgsConfig = {
+        allowUnfree = true;
+        allowBroken = true;
+    };
+
+    pkgs = import inputs.nixpkgs {
+        system = "x86_64-linux";
+        config = nixpkgsConfig;
+        overlays = overlays;
+    };
+    xdgConfig = config.environment.sessionVariables.XDG_CONFIG_HOME;
+
+    inherit (pkgs) lib;
 in
 
+with lib;
 {
     imports =
         [
-            ./hardware-configuration.nix
-            ./setup/sway.nix              # SwayWM configuration
-            ./setup/zsh.nix               # ZSH configuration
+            (import inputs.hardware-configuration)
+            (import inputs.sway)              # SwayWM configuration
+            (import inputs.zsh)               # ZSH configuration
         ];
+
+    nixpkgs.overlays = overlays;
 
     # Boot setup
     boot = {
@@ -20,10 +65,10 @@ in
             enable = true;
             configurationLimit = 10;
         };
-        loader.efi.canTouchEfiVariables = false;
+        loader.efi.canTouchEfiVariables = mkForce false;
         supportedFilesystems = [ "zfs" "btrfs" ];
         zfs.enableUnstable = true;
-        kernelPackages = pkgs.linuxPackages_zen;
+        kernelPackages = pkgs.linuxPackages_xanmod;
         consoleLogLevel = 3;
         kernelParams = [ "systemd.restore_state=0" "audit=0" "i915.modeset=1" "i915.enable_fbc=1" "i915.enable_psr=0" "i915.enable_dc=0" "i915.fastboot=1" "i915.nuclear_pageflip=1" "intel_pstate=active" "pcie_aspm.policy=performance" "mitigations=off" "nowatchdog" "nmi_watchdog=0" "ipv6.disable=1" "cryptomgr.notests" "intel_iommu=igfx_off" "kvm-intel.nested=1" "no_timer_check" "noreplace-smp" "page_alloc_shuffle=1" "rcu_nocbs=0-64" "rcupdate.rcu_expedited=1" "tsc=reliable" "zfs.zfs_arc_max=3221225472" "boot.shell_on_fail" ];
         initrd.availableKernelModules = [ "zfs" "sd_mod" "ahci" "i915" "ath9k" "atl1c" "atkbd" "i8042" ];
@@ -106,7 +151,7 @@ in
     # Security
     security = {
       rtkit.enable = true;
-      apparmor.enable = lib.mkForce false;
+      apparmor.enable = mkForce false;
       pam.loginLimits = [
           { domain = "${username}"; item = "memlock"; type = "soft"; value = "64"; }
           { domain = "${username}"; item = "memlock"; type = "hard"; value = "128"; }
@@ -127,7 +172,8 @@ in
 
     # Networking stuff
     networking = {
-        hostName = "nixsys";
+        hostName = "nixos-usb";
+        hostId = "e7bfdb3e";
         resolvconf = {
             enable = true;
             useLocalResolver = true;
@@ -277,17 +323,15 @@ in
         dnscrypt-proxy2 = {
             enable = true;
             settings = {
+                server_names = [ "quad9-dnscrypt-ip4-nofilter-ecs-pri" "dnscrypt.eu-nl" "v.dnscrypt.uk-ipv4" "cloudflare-security" ];
                 ipv6_servers = false;
                 require_dnssec = true;
 
-                sources.public-resolvers = {
-                    urls = [
-                        "https://raw.githubusercontent.com/DNSCrypt/dnscrypt-resolvers/master/v3/public-resolvers.md"
-                        "https://download.dnscrypt.info/resolvers-list/v3/public-resolvers.md"
-                    ];
-                    cache_file = "/var/cache/dnscrypt-proxy2/public-resolvers.md";
-                    minisign_key = "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3";
-                };
+                require_nofilter = false;
+
+                block_ipv6 = true;
+
+                cache = true;
             };
         };
         timesyncd = {
@@ -322,8 +366,8 @@ in
             Audit=no
         '';
         logind.killUserProcesses = true;
-        gnome.at-spi2-core.enable = lib.mkForce false;
-        gnome.gnome-keyring.enable = lib.mkForce false;
+        gnome.at-spi2-core.enable = mkForce false;
+        gnome.gnome-keyring.enable = mkForce false;
     };
 
     # Systemd services
@@ -331,9 +375,9 @@ in
         systemd-networkd-wait-online.enable = false;
     };
 
-    systemd.services.dnscrypt-proxy2.serviceConfig = {
-        StateDirectory = lib.mkForce "dnscrypt-proxy2";
-    };
+    #systemd.services.dnscrypt-proxy2.serviceConfig = {
+    #    StateDirectory = mkForce "dnscrypt-proxy2";
+    #};
 
     systemd.services.polkit = {
         restartIfChanged = false;
@@ -394,7 +438,7 @@ in
         fonts = with pkgs; [
             roboto
             hasklig
-            noto-fonts-cjk
+            #noto-fonts-cjk
             ibm-plex
             #font-awesome
             (nerdfonts.override { fonts = [ "Arimo" ]; })
@@ -473,14 +517,14 @@ in
         mate.mate-calc
         mpv
         yt-dlp-light
-        vscodium
-        mate.mate-polkit
+        #vscodium
+        #mate.mate-polkit
         mate.engrampa
-        mate.caja
+        #mate.caja
         #steam
         #steam-run-native
         #lutris
-        #SDL2
+        #pactl
 
     # Nix/NixOS stuff
         nix-index
@@ -508,6 +552,8 @@ in
         #autoPatchelfHook
         #patchelf
         #shellcheck
+        libclang
+        sumneko-lua-language-server
         rnix-lsp
 
     # Terminal
@@ -521,14 +567,15 @@ in
 
     # Session variables
     environment.sessionVariables = rec {
-        MANPAGER = "nvim -c 'set ft=man' -";
+        MANPAGER = "nvim +Man!";
         BROWSER = "firefox";
         VISUAL = "$EDITOR";
         SYSTEMD_EDITOR = "$EDITOR";
         SYSTEM = "$(uname -s)";
-        TERMINAL = "alacritty";
+        TERMINAL = "foot";
         QT_XFT = "true";
         ZDOTDIR = "$HOME/.config/zsh";
+        ZHOME = "$HOME/.config/zsh";
         NO_AT_BRIDGE = "1";
         XDG_CACHE_HOME = "/tmp/${username}/.cache";
         XDG_CONFIG_HOME = "$HOME/.config";
@@ -539,6 +586,60 @@ in
     };
 
     programs = {
+        git = {
+            enable = true;
+            config = {
+                "core" = {
+                    "editor" = "nvim";
+                    "pager" = "delta";
+                };
+                "init" = {
+                    "defaultBranch" = "master";
+                };
+                "interactive" = {
+                    "diffFilter" = "delta --color-only";
+                };
+                "user" = {
+                    "name" = "Ivan";
+                    "email" = "etircopyhdot@gmail.com";
+                };
+                "gpg" = {
+                    "program" = "gpg2";
+                };
+                "credential" = {
+                    "helper" = "cache --timeout 14400";
+                    "username" = "${username}";
+                };
+                "commit" = {
+                    "verbose" = "true";
+                };
+                "tag" = {
+                    "gpgsign" = "true";
+                };
+                "pull" = {
+                    "default" = "current";
+                    "rebase" = "false";
+                };
+                "push" = {
+                    "default" = "current";
+                };
+                "rebase" = {
+                    "autoSquash" = "true";
+                    "autoStash" = "true";
+                    "stat" = "true";
+                };
+                "grep" = {
+                    "lineNumber" = "true";
+                };
+                "pager" = {
+                    "diff" = "delta";
+                    "log" = "delta";
+                    "reflog" = "delta";
+                    "show" = "delta";
+                };
+            };
+        };
+
         gnupg = {
             agent = {
                 enable = true;
@@ -563,8 +664,20 @@ in
             vimAlias = true;
             withRuby = false;
             configure = {
+                packages.myPlugins = with pkgs.vimPlugins; {
+                    start = [
+                        (nvim-treesitter.withPlugins (
+                            plugins: with plugins; [
+                                tree-sitter-nix
+                                tree-sitter-python
+                                tree-sitter-c
+                                tree-sitter-cpp
+                            ]
+                        ))
+                    ];
+                };
                 customRC = ''
-                    source /home/${username}/.config/nvim/init.vim
+                    source ${xdgConfig}/nvim/init.vim
                 '';
             };
         };
@@ -592,30 +705,27 @@ in
         alsa.enable = true;
         pulse.enable = true;
         jack.enable = false;
-        #config.pipewire = {
-            #"context.properties" = {
-                #"default.clock.allowed-rates" = [ 44100 48000 96000 ];
-            #};
-        #};
-        media-session.config = {
-            alsa-monitor = {
-                rules = [
-                    {
-                        matches = [ { "node.name" = "alsa_output.*"; } ];
-                        actions = {
-                            "update-props" = {
-                                "audio.format" = "FLOAT32LE";
-                            };
-                        };
-                    }
-                ];
+        config.pipewire = {
+            "context.properties" = {
+                "default.clock.allowed-rates" = [ 44100 48000 96000 ];
             };
+        };
+        media-session.config = {
             bluez-monitor = {
                 # Matches all cards
                 matches = [ { "device.name" = "~bluez_card.*"; } ];
                 properties = {
                     "bluez5.enable-msbc" = true;
                     "bluez5.enable-sbc-xq" = true;
+                    "bluez5.enable-hw-volume" = true;
+                    "bluez5.enable-faststream" = true;
+                    "bluez5.dummy-avrcp-player" = false;
+                };
+
+                actions = {
+                    update-props = {
+                        "bluez5.a2dp.ldac.quality" = "mq";
+                    };
                 };
 
                 rules = [
@@ -629,7 +739,7 @@ in
                         actions = {
                             "update-props" = {
                                 "node.pause-on-idle" = false;
-                                "session.suspend-timeout-seconds" = 0;
+                                "session.suspend-timeout-seconds" = 5;
                             };
                         };
                     }
@@ -680,22 +790,29 @@ in
       #greetingLine = "";
     };
 
+    nix.registry.self.flake = inputs.self;
+
+    environment.etc."channels/nixpkgs".source = inputs.nixpkgs;
+    #environment.etc."channels/home-manager".source = inputs.home-manager;
+    #"home-manager=/etc/channels/home-manager"
     nix = {
-        #extraOptions = "experimental-features = nix-command flakes";
+        nixPath = mkForce [
+            "nixpkgs=/etc/channels/nixpkgs"
+            "nixos-config=/etc/nixos/configuration.nix"
+            "nixpkgs-overlays=/etc/nixos/overlays-compat"
+        ];
+        package = pkgs.nixUnstable;
+        extraOptions = "experimental-features = nix-command flakes";
+        useSandbox = false;
+        autoOptimiseStore = true;
         buildCores = 5;
         trustedUsers = [ "root" "@wheel" ];
     };
 
     # Nixpkgs configuration
-    nixpkgs.config = {
-        allowUnfree = true;
-        allowBroken = true;
-        packageOverrides = pkgs: {
-            nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/master.tar.gz") {
-                inherit pkgs;
-            };
-        };
-    };
+    nixpkgs.config = nixpkgsConfig;
+
+    documentation.doc.enable = false;
 
     # User configuration
     users = {
@@ -718,5 +835,5 @@ in
         };
     };
 
-    system.stateVersion = "21.11";
+    system.stateVersion = "22.05";
 }
